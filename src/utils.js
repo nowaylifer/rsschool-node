@@ -45,3 +45,11 @@ export function printWelcomeMsg(username) {
 export function printEOL() {
   process.stdout.write(EOL);
 }
+
+export function parseStringToArgv(value) {
+  const regexp = /([^\s'"]([^\s'"]*(['"])([^\3]*?)\3)+[^\s'"]*)|[^\s'"]+|(['"])([^\5]*?)\5/gi;
+
+  return [...value.matchAll(regexp)].map((match) =>
+    [match[1], match[6], match[0]].find((v) => typeof v === 'string')
+  );
+}

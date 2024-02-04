@@ -1,7 +1,7 @@
 import readline from 'node:readline';
 import { parseArgs } from 'node:util';
 import { EOL } from 'node:os';
-import { printEOL, printExitMsg, printWelcomeMsg } from './utils.js';
+import { parseStringToArgv, printEOL, printExitMsg, printWelcomeMsg } from './utils.js';
 import { InputError, CommandError } from './errors.js';
 import CommandConfig from './command-config.js';
 import FileExplorer from './file-explorer.js';
@@ -71,7 +71,7 @@ async function handleCommandInput(input, commands) {
 }
 
 function parseCommand(input, commands) {
-  const argsArray = input.split(' ');
+  const argsArray = parseStringToArgv(input);
   const cmdName = argsArray[0];
   const command = commands[cmdName];
 
