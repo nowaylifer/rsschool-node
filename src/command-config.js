@@ -81,17 +81,17 @@ export default class CommandConfig {
       {
         name: 'hash',
         args: ['<file>'],
-        handler: calcHash,
+        handler: (file) => calcHash(explorer.resolvePath(file)),
       },
       {
         name: 'compress',
         args: ['<file>', '<dest>'],
-        handler: compress,
+        handler: (file, dest) => compress(explorer.resolvePath(file), explorer.resolvePath(dest)),
       },
       {
         name: 'decompress',
         args: ['<file>', '<dest>'],
-        handler: decompress,
+        handler: (file, dest) => decompress(explorer.resolvePath(file), explorer.resolvePath(dest)),
       },
       {
         name: 'os',

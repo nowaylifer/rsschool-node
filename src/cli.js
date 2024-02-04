@@ -1,44 +1,55 @@
-import { EOL } from 'node:os';
+import readline from 'node:readline';
 import { parseArgs } from 'node:util';
-import FileExplorer from './file-explorer.js';
-import CommandConfig from './command-config.js';
+import { EOL } from 'node:os';
+import { printEOL, printExitMsg, printWelcomeMsg } from './utils.js';
 import { InputError, CommandError } from './errors.js';
-import { printExitMsg, printWelcomeMsg } from './utils.js';
-
-const PROMT = '>';
+import CommandConfig from './command-config.js';
+import FileExplorer from './file-explorer.js';
 
 export default function initCLI() {
-  const {
-    values: { username },
-  } = parseArgs({ options: { username: { type: 'string' } } });
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
+
+  const username = parseArgv();
 
   const explorer = new FileExplorer();
   const commandConfig = new CommandConfig(explorer, username);
 
   printWelcomeMsg(username);
   explorer.printCwd();
-  printPromt();
+  rl.prompt();
 
-  process.stdin.on('data', async (data) => {
-    const input = data.toString().trim();
+  rl.on('line', async (line) => {
+    const input = line.trim();
 
     if (!input) {
-      return printPromt();
+      return rl.prompt();
     }
 
     await handleCommandInput(input, commandConfig.commands);
     explorer.printCwd();
-    printPromt();
+    rl.prompt();
   });
 
-  process.on('SIGINT', () => {
+  rl.on('SIGINT', () => {
+    printEOL();
     printExitMsg(username);
     process.exit();
   });
 }
 
-function printPromt() {
-  process.stdout.write(PROMT + ' ');
+function parseArgv() {
+  const {
+    values: { username },
+  } = parseArgs({ options: { username: { type: 'string' } } });
+
+  if (!username) {
+    throw new Error('You must provide username: --username=<username>');
+  }
+
+  return username;
 }
 
 async function handleCommandInput(input, commands) {
@@ -86,7 +97,6 @@ function parseCommand(input, commands) {
 }
 
 function checkArgErrors(command, { values, positionals }) {
-  debugger;
   if (positionals.length > (command.args?.length ?? 0)) {
     throw new InputError(`too many arguments${EOL}Use ${getCommandUsageExample(command)}`, command);
   }

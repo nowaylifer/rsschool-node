@@ -1,4 +1,5 @@
 import fs from 'node:fs/promises';
+import { EOL } from 'node:os';
 
 export async function asyncIterableToArray(asyncIterable) {
   const result = [];
@@ -39,4 +40,8 @@ export function printExitMsg(username) {
 
 export function printWelcomeMsg(username) {
   console.log(`Welcome to the File Manager, ${username}!`);
+}
+
+export function printEOL() {
+  process.stdout.write(EOL);
 }

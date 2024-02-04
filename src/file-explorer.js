@@ -1,8 +1,8 @@
 import { createReadStream, createWriteStream, promises as fs } from 'node:fs';
 import { pipeline } from 'node:stream/promises';
-import { homedir, EOL } from 'node:os';
+import { homedir } from 'node:os';
 import path from 'node:path';
-import { asyncIterableToArray, bindMethods, mkdirForce } from './utils.js';
+import { asyncIterableToArray, bindMethods, mkdirForce, printEOL } from './utils.js';
 
 export default class FileExplorer {
   #cwd;
@@ -40,10 +40,21 @@ export default class FileExplorer {
 
   async ls() {
     const dirents = await asyncIterableToArray(await this.cd(this.cwd, false));
-    const entries = dirents.map((dirent) => ({
-      Name: dirent.name,
-      Type: dirent.isDirectory() ? 'directory' : 'file',
-    }));
+    const entries = dirents
+      .map((dirent) => ({
+        Name: dirent.name,
+        Type: dirent.isDirectory() ? 'directory' : 'file',
+      }))
+      .sort((a, b) => {
+        if (a.Type === 'directory' && b.Type === 'file') {
+          return -1;
+        } else if (a.Type === 'file' && b.Type === 'directory') {
+          return 1;
+        }
+
+        return a.Name.localeCompare(b.Name);
+      });
+
     console.table(entries);
   }
 
@@ -51,7 +62,7 @@ export default class FileExplorer {
     await pipeline(createReadStream(this.resolvePath(pathToFile)), process.stdout, {
       end: false,
     });
-    process.stdout.write(EOL);
+    printEOL();
   }
 
   async add(pathToFile) {
@@ -81,12 +92,16 @@ export default class FileExplorer {
     async function ensureDestDirExists() {
       const srcStats = await fs.stat(resolvedSrcPath);
 
+      if (srcStats.isDirectory() && resolvedDestPath.includes(resolvedSrcPath)) {
+        throw new Error(`cannot copy a directory, '${srcPath}' into itself, '${destPath}'`);
+      }
+
       try {
         const destStats = await fs.stat(resolvedDestPath);
 
         if (srcStats.isDirectory() && destStats.isFile()) {
           throw new Error(
-            `cannot overwrite non-directory '${destPath} with directory '${srcPath}'`
+            `cannot overwrite non-directory '${destPath}' with directory '${srcPath}'`
           );
         }
 
