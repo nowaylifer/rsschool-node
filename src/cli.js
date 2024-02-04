@@ -12,8 +12,7 @@ export default function initCLI() {
     output: process.stdout,
   });
 
-  const username = parseArgv();
-
+  const username = parseUsername();
   const explorer = new FileExplorer();
   const commandConfig = new CommandConfig(explorer, username);
 
@@ -40,7 +39,7 @@ export default function initCLI() {
   });
 }
 
-function parseArgv() {
+function parseUsername() {
   const {
     values: { username },
   } = parseArgs({ options: { username: { type: 'string' } } });

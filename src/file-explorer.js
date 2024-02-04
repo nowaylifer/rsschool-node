@@ -71,7 +71,7 @@ export default class FileExplorer {
   }
 
   async rn(pathToFile, newFilename) {
-    await fs.rename(this.resolvePath(pathToFile), newFilename);
+    await fs.rename(this.resolvePath(pathToFile), this.resolvePath(newFilename));
   }
 
   async cp(srcPath, destPath) {

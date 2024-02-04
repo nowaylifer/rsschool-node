@@ -60,7 +60,7 @@ export default class CommandConfig {
       },
       {
         name: 'rn',
-        args: ['<src>', '<new-name>'],
+        args: ['<src>', '<dest>'],
         handler: explorer.rn,
       },
       {
