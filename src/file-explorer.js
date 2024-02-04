@@ -1,19 +1,23 @@
 import { createReadStream, createWriteStream, promises as fs } from 'node:fs';
 import { pipeline } from 'node:stream/promises';
-import { homedir } from 'node:os';
+import { homedir, EOL } from 'node:os';
 import path from 'node:path';
-import { asyncIterableToArray, mkdirForce, printError } from './utils.js';
+import { asyncIterableToArray, bindMethods, mkdirForce } from './utils.js';
 
 export default class FileExplorer {
   #cwd;
-  #cwdHandle;
 
   constructor(cwd = homedir()) {
     this.#cwd = cwd;
+    bindMethods.call(this);
   }
 
   get cwd() {
     return this.#cwd;
+  }
+
+  printCwd() {
+    console.log(`You are currently in ${this.cwd}`);
   }
 
   resolvePath(pathTo) {
@@ -22,80 +26,41 @@ export default class FileExplorer {
 
   async up() {
     const parentDir = this.resolvePath('..');
-
-    if (parentDir === this.cwd) {
-      return;
-    }
-
+    if (parentDir === this.cwd) return;
     return await this.cd(parentDir);
   }
 
-  async cd(pathToDir) {
+  async cd(pathToDir, shouldClose = true) {
     const resolvedPath = this.resolvePath(pathToDir);
-
-    try {
-      const dir = await fs.opendir(resolvedPath);
-
-      if (this.#cwdHandle) {
-        await this.#cwdHandle.close();
-      }
-
-      this.#cwd = resolvedPath;
-      this.#cwdHandle = dir;
-
-      return true;
-    } catch (error) {
-      printError(error);
-      return false;
-    }
+    const dir = await fs.opendir(resolvedPath);
+    this.#cwd = resolvedPath;
+    if (shouldClose) dir.close();
+    return dir;
   }
 
   async ls() {
-    try {
-      if (!this.#cwdHandle) {
-        if (!(await this.cd(this.cwd))) {
-          return;
-        }
-      }
-
-      const dirents = await asyncIterableToArray(this.#cwdHandle);
-      const entries = dirents.map((dirent) => ({
-        Name: dirent.name,
-        Type: dirent.isDirectory() ? 'directory' : 'file',
-      }));
-
-      console.table(entries);
-    } catch (error) {
-      printError(error);
-    }
+    const dirents = await asyncIterableToArray(await this.cd(this.cwd, false));
+    const entries = dirents.map((dirent) => ({
+      Name: dirent.name,
+      Type: dirent.isDirectory() ? 'directory' : 'file',
+    }));
+    console.table(entries);
   }
 
   async cat(pathToFile) {
-    try {
-      await pipeline(createReadStream(this.resolvePath(pathToFile)), process.stdout, {
-        end: false,
-      });
-      // process.stdout.write('\n');
-    } catch (error) {
-      printError(error);
-    }
+    await pipeline(createReadStream(this.resolvePath(pathToFile)), process.stdout, {
+      end: false,
+    });
+    process.stdout.write(EOL);
   }
 
   async add(pathToFile) {
-    try {
-      const fileHandle = await fs.open(this.resolvePath(pathToFile));
-      await fileHandle.close();
-    } catch (error) {
-      printError(error);
-    }
+    const fileHandle = await fs.open(this.resolvePath(pathToFile), 'w');
+    fileHandle.close();
   }
 
   async rn(pathToFile, newFilename) {
-    try {
-      await fs.rename(this.resolvePath(pathToFile), newFilename);
-    } catch (error) {
-      printError(error);
-    }
+    await fs.rename(this.resolvePath(pathToFile), newFilename);
   }
 
   async cp(srcPath, destPath) {
@@ -106,13 +71,11 @@ export default class FileExplorer {
     try {
       await ensureDestDirExists();
       await copy(resolvedSrcPath, resolvedDestPath);
-      return true;
     } catch (error) {
       if (firstCreatedPath) {
-        await fs.rm(firstCreatedPath, { recursive: true, force: true });
+        fs.rm(firstCreatedPath, { recursive: true, force: true });
       }
-      printError(error);
-      return false;
+      throw error;
     }
 
     async function ensureDestDirExists() {
@@ -164,18 +127,11 @@ export default class FileExplorer {
   }
 
   async mv(srcPath, destPath) {
-    if (await this.cp(srcPath, destPath)) {
-      await fs.rm(srcPath, { recursive: true, force: true });
-    }
+    await this.cp(srcPath, destPath);
+    await fs.rm(this.resolvePath(srcPath), { recursive: true, force: true });
   }
 
   async rm(pathTo) {
-    try {
-      await fs.rm(pathTo, { recursive: true });
-    } catch (error) {
-      printError(error);
-    }
+    await fs.rm(this.resolvePath(pathTo), { recursive: true });
   }
 }
-
-const fe = new FileExplorer(process.cwd());

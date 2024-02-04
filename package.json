@@ -3,9 +3,9 @@
   "version": "1.0.0",
   "type": "module",
   "description": "",
-  "main": "cli.js",
+  "main": "bin/file-manager.js",
   "scripts": {
-    "start": "./cli.js"
+    "start": "node bin/file-manager.js"
   },
   "keywords": [],
   "author": "",
