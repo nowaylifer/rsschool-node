@@ -1,10 +1,9 @@
-import readline from 'node:readline';
 import { parseArgs } from 'node:util';
-import { EOL } from 'node:os';
-import { parseStringToArgv, printEOL, printExitMsg, printWelcomeMsg } from './utils.js';
-import { InputError, CommandError } from './errors.js';
+import readline from 'node:readline';
+import { parseStringToArgv, printEOL, printError, printExitMsg, printWelcomeMsg } from './utils.js';
 import CommandConfig from './command-config.js';
 import FileExplorer from './file-explorer.js';
+import { InputError } from './errors.js';
 
 export default function initCLI() {
   const rl = readline.createInterface({
@@ -57,15 +56,15 @@ async function handleCommandInput(input, commands) {
   try {
     parseResult = parseCommand(input, commands);
   } catch (error) {
-    return error instanceof InputError ? error.print() : console.error(error);
+    return printError(error);
   }
 
-  const { command, args, options } = parseResult;
+  const { command, inputArgs } = parseResult;
 
   try {
-    await command.handler(...args, options);
+    await command.exec(inputArgs);
   } catch (error) {
-    return new CommandError(error.message, command, error.code).print();
+    printError(error);
   }
 }
 
@@ -78,42 +77,5 @@ function parseCommand(input, commands) {
     throw new InputError(`command not found: ${cmdName}`);
   }
 
-  let parseResult;
-
-  try {
-    parseResult = parseArgs({
-      args: argsArray.slice(1),
-      allowPositionals: true,
-      options: command.options,
-    });
-  } catch (error) {
-    throw new InputError(error.message, command, error.code);
-  }
-
-  checkArgErrors(command, parseResult);
-
-  return { command, args: parseResult.positionals, options: parseResult.values };
-}
-
-function checkArgErrors(command, { values, positionals }) {
-  if (positionals.length > (command.args?.length ?? 0)) {
-    throw new InputError(`too many arguments${EOL}Use ${getCommandUsageExample(command)}`, command);
-  }
-
-  if (positionals.length < (command.args?.length ?? 0)) {
-    throw new InputError(`missing arguments${EOL}Use ${getCommandUsageExample(command)}`, command);
-  }
-
-  if (command.minOptionCount && Object.keys(values).length < command.minOptionCount) {
-    throw new InputError(
-      `you must provide at least ${command.minOptionCount} option${
-        command.minOptionCount > 1 ? 's' : ''
-      }`,
-      command
-    );
-  }
-}
-
-function getCommandUsageExample(command) {
-  return `${command.name} ${command.args?.length ? command.args.join(' ') : ''}`;
+  return { command, inputArgs: argsArray.slice(1) };
 }

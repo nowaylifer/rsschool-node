@@ -1,7 +1,8 @@
 import { osInfo, printOsInfo } from './os-info.js';
 import { compress, decompress } from './brotli.js';
-import calcHash from './calc-hash.js';
 import { printExitMsg } from './utils.js';
+import calcHash from './calc-hash.js';
+import Command from './command.js';
 
 export default class CommandConfig {
   constructor(fileExplorer, username) {
@@ -16,11 +17,11 @@ export default class CommandConfig {
 
     if (Array.isArray(config)) {
       this.commands = config.reduce(
-        (acc, command) => ({ ...acc, [command.name]: { ...command } }),
+        (acc, draft) => ({ ...acc, [draft.name]: new Command(draft) }),
         this.commands
       );
     } else {
-      this.commands[config.name] = config;
+      this.commands[config.name] = new Command(config);
     }
 
     return this;

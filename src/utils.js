@@ -1,5 +1,6 @@
 import fs from 'node:fs/promises';
 import { EOL } from 'node:os';
+import { InputError, CommandError } from './errors.js';
 
 export async function asyncIterableToArray(asyncIterable) {
   const result = [];
@@ -44,6 +45,13 @@ export function printWelcomeMsg(username) {
 
 export function printEOL() {
   process.stdout.write(EOL);
+}
+
+export function printError(error) {
+  if (error instanceof InputError || error instanceof CommandError) {
+    return error.print();
+  }
+  console.error(error);
 }
 
 export function parseStringToArgv(value) {
