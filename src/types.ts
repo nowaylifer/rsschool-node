@@ -7,3 +7,10 @@ export const HttpMethod = {
   PUT: 'PUT',
   DELETE: 'DELETE',
 } as const;
+
+export type User = {
+  id: string;
+  username: string;
+  age: number;
+  hobbies: string[];
+};
