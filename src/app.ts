@@ -1,4 +1,4 @@
-import express from './express';
+import express, { type ClientRequest } from './express';
 import { v4 as uuid, validate as validateUuid } from 'uuid';
 import { assertIsUserDraft } from './utils';
 import type { User } from './types';
@@ -12,25 +12,38 @@ const app = express('api');
 
 app.use(express.json());
 
+interface RequestWithUser extends ClientRequest {
+  user: User;
+}
+
+app.use((req, res, next) => {
+  if (req.path === 'users/:id') {
+    const userId = req.params!.id;
+
+    if (!validateUuid(userId)) {
+      return res.status(400).error('Invalid user id');
+    }
+
+    const user = USERS.find((user) => user.id === userId);
+
+    if (user) {
+      Object.assign(req, { user });
+      next();
+    } else {
+      res.status(404).error('User not found');
+    }
+
+    return;
+  }
+
+  next();
+});
+
 app.get('users', (_req, res) => {
   res.status(200).json(USERS);
 });
 
-app.get('users/:id', (req, res) => {
-  const userId = req.params!.id;
-
-  if (!validateUuid(userId)) {
-    return res.status(400).error('Invalid user id');
-  }
-
-  const user = USERS.find((user) => user.id === userId);
-
-  if (user) {
-    res.status(200).json(user);
-  } else {
-    res.status(404).error('User not found');
-  }
-});
+app.get('users/:id', (req, res) => {});
 
 app.post('users', (req, res) => {
   try {
@@ -42,5 +55,7 @@ app.post('users', (req, res) => {
     res.status(400).error((error as Error).message);
   }
 });
+
+app.put('users/:id', (req, res) => {});
 
 export default app;

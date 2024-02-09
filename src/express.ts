@@ -12,6 +12,7 @@ export type ServerResponse = http.ServerResponse<http.IncomingMessage> & {
 
 export type ClientRequest = http.IncomingMessage & {
   params?: Record<string, string>;
+  path: string;
   body: unknown;
 };
 
@@ -23,10 +24,12 @@ export class Express {
   private routes: Record<string, RouteHandler>;
   private middlewares: Middleware[];
   private baseRoute: string;
+  private paths: Record<string, string>;
 
   constructor(baseRoute: string = '') {
     this.server = http.createServer();
     this.routes = Object.create(null);
+    this.paths = {};
     this.middlewares = [];
     this.baseRoute = baseRoute;
 
@@ -56,6 +59,7 @@ export class Express {
       if (!match) return res.status(404).error('Endpoint not found');
 
       req.params = match.params;
+      req.path = this.paths[match.route];
       this.runMiddleware(match.route, req, res);
     });
   }
@@ -89,6 +93,7 @@ export class Express {
       `${method} /${this.baseRoute}${this.baseRoute ? '/' : ''}${path}`,
     );
     this.routes[regexpString] = cb;
+    this.paths[regexpString] = path;
   }
 
   private runMiddleware(route: string, req: ClientRequest, res: ServerResponse) {
