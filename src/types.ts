@@ -14,3 +14,5 @@ export type User = {
   age: number;
   hobbies: string[];
 };
+
+export type UserDraft = Omit<User, 'id'>;

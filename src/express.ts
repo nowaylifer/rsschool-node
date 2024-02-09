@@ -11,6 +11,7 @@ export type ServerResponse = http.ServerResponse<http.IncomingMessage> & {
 
 export type ClientRequest = http.IncomingMessage & {
   params?: Record<string, string>;
+  json: () => Promise<JSONValue>;
 };
 
 export type RouteHandler = (req: ClientRequest, res: ServerResponse) => void;
@@ -38,6 +39,28 @@ export class Express {
 
       res.error = (message) => {
         res.json({ error: { status: res.statusCode, message } });
+      };
+
+      req.json = async () => {
+        return new Promise((resolve, reject) => {
+          let body = '';
+
+          req.on('data', (chunk) => {
+            try {
+              body += chunk.toString('utf-8');
+            } catch (error) {
+              reject(error);
+            }
+          });
+
+          req.on('end', () => {
+            try {
+              resolve(JSON.parse(body));
+            } catch (error) {
+              reject(error);
+            }
+          });
+        });
       };
 
       let reqRouteString = `${req.method!.toLocaleUpperCase()} ${req.url}`;
@@ -101,7 +124,7 @@ export function pathToRegexpString(path: string) {
     );
   }
 
-  return regexpString + '$';
+  return `^${regexpString}$`;
 }
 
 function matchRoute(urlPath: string, routes: string[]) {
