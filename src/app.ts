@@ -13,10 +13,10 @@ const app = express('api');
 app.use(express.json());
 
 interface RequestWithUser extends ClientRequest {
-  user: User;
+  user: { index: number; value: User };
 }
 
-app.use((req, res, next) => {
+app.use((req: RequestWithUser, res, next) => {
   if (req.path === 'users/:id') {
     const userId = req.params!.id;
 
@@ -24,10 +24,10 @@ app.use((req, res, next) => {
       return res.status(400).error('Invalid user id');
     }
 
-    const user = USERS.find((user) => user.id === userId);
+    const userIndex = USERS.findIndex((user) => user.id === userId);
 
-    if (user) {
-      Object.assign(req, { user });
+    if (userIndex >= 0) {
+      req.user = { index: userIndex, value: USERS[userIndex] };
       next();
     } else {
       res.status(404).error('User not found');
@@ -40,22 +40,39 @@ app.use((req, res, next) => {
 });
 
 app.get('users', (_req, res) => {
-  res.status(200).json(USERS);
+  res.status(200).send(USERS);
 });
-
-app.get('users/:id', (req, res) => {});
 
 app.post('users', (req, res) => {
   try {
     assertIsUserDraft(req.body);
     const user = { id: uuid(), ...req.body };
     USERS.push(user);
-    res.status(201).json(user);
+    res.status(201).send(user);
   } catch (error) {
     res.status(400).error((error as Error).message);
   }
 });
 
-app.put('users/:id', (req, res) => {});
+app.get('users/:id', (req: RequestWithUser, res) => {
+  res.status(200).send(req.user.value);
+});
+
+app.put('users/:id', (req: RequestWithUser, res) => {
+  try {
+    assertIsUserDraft(req.body);
+    const userUpdated = { ...req.body, id: req.user.value.id };
+    USERS[req.user.index] = userUpdated;
+    res.status(200).send(userUpdated);
+  } catch (error) {
+    res.status(400).error((error as Error).message);
+  }
+});
+
+app.delete('users/:id', (req: RequestWithUser, res) => {
+  const { index } = req.user;
+  USERS.splice(index, 1);
+  res.status(204).end();
+});
 
 export default app;

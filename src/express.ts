@@ -6,7 +6,7 @@ export type ServerResponse = http.ServerResponse<http.IncomingMessage> & {
   req: http.IncomingMessage;
 } & {
   status: (code: number) => ServerResponse;
-  json: (data: JSONValue) => void;
+  send: (data: JSONValue) => void;
   error: (message: string) => void;
 };
 
@@ -16,8 +16,16 @@ export type ClientRequest = http.IncomingMessage & {
   body: unknown;
 };
 
-export type RouteHandler = (req: ClientRequest, res: ServerResponse) => void;
-export type Middleware = (req: ClientRequest, res: ServerResponse, next: () => void) => void;
+export type RouteHandler<TRequest extends ClientRequest = ClientRequest> = (
+  req: TRequest,
+  res: ServerResponse,
+) => void;
+
+export type Middleware<TRequest extends ClientRequest = ClientRequest> = (
+  req: TRequest,
+  res: ServerResponse,
+  next: () => void,
+) => void;
 
 export class Express {
   private server: http.Server;
@@ -39,13 +47,18 @@ export class Express {
         return res;
       };
 
-      res.json = (data) => {
-        res.setHeader('Content-Type', 'application/json');
-        res.end(JSON.stringify(data));
+      res.send = (data) => {
+        if (typeof data === 'object') {
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify(data));
+        } else {
+          res.setHeader('Content-Type', 'text/plain');
+          res.end(data);
+        }
       };
 
       res.error = (message) => {
-        res.json({ error: { status: res.statusCode, message } });
+        res.send({ error: { status: res.statusCode, message } });
       };
 
       let reqRouteString = `${req.method!.toLocaleUpperCase()} ${req.url}`;
@@ -68,31 +81,35 @@ export class Express {
     this.server.listen(port, cb);
   }
 
-  use(middleware: Middleware) {
-    this.middlewares.push(middleware);
+  use<TRequest extends ClientRequest>(middleware: Middleware<TRequest>) {
+    this.middlewares.push(middleware as Middleware);
   }
 
-  get(path: string, cb: RouteHandler) {
+  get<TRequest extends ClientRequest>(path: string, cb: RouteHandler<TRequest>) {
     this.registerRoute(HttpMethod.GET, path, cb);
   }
 
-  post(path: string, cb: RouteHandler) {
+  post<TRequest extends ClientRequest>(path: string, cb: RouteHandler<TRequest>) {
     this.registerRoute(HttpMethod.POST, path, cb);
   }
 
-  put(path: string, cb: RouteHandler) {
+  put<TRequest extends ClientRequest>(path: string, cb: RouteHandler<TRequest>) {
     this.registerRoute(HttpMethod.PUT, path, cb);
   }
 
-  delete(path: string, cb: RouteHandler) {
+  delete<TRequest extends ClientRequest>(path: string, cb: RouteHandler<TRequest>) {
     this.registerRoute(HttpMethod.DELETE, path, cb);
   }
 
-  private registerRoute(method: HttpMethod, path: string, cb: RouteHandler) {
+  private registerRoute<TRequest extends ClientRequest>(
+    method: HttpMethod,
+    path: string,
+    cb: RouteHandler<TRequest>,
+  ) {
     const regexpString = this.pathToRegexpString(
       `${method} /${this.baseRoute}${this.baseRoute ? '/' : ''}${path}`,
     );
-    this.routes[regexpString] = cb;
+    this.routes[regexpString] = cb as RouteHandler;
     this.paths[regexpString] = path;
   }
 
