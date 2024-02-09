@@ -10,6 +10,8 @@ const USERS: User[] = [
 
 const app = express('api');
 
+app.use(express.json());
+
 app.get('users', (_req, res) => {
   res.status(200).json(USERS);
 });
@@ -30,18 +32,10 @@ app.get('users/:id', (req, res) => {
   }
 });
 
-app.post('users', async (req, res) => {
-  let reqBody;
-
+app.post('users', (req, res) => {
   try {
-    reqBody = await req.json();
-  } catch (error) {
-    return res.status(400).error((error as Error).message);
-  }
-
-  try {
-    assertIsUserDraft(reqBody);
-    const user = { id: uuid(), ...reqBody };
+    assertIsUserDraft(req.body);
+    const user = { id: uuid(), ...req.body };
     USERS.push(user);
     res.status(201).json(user);
   } catch (error) {
