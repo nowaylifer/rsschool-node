@@ -5,7 +5,8 @@
   "main": "build/index.js",
   "scripts": {
     "start:dev": "ts-node-dev src/index.ts",
-    "start:prod": "webpack && node build/index.js",
+    "start:prod": "CLUSTER=true webpack && node build/index.js",
+    "start:multi": "CLUSTER=true npm run start:dev",
     "start:debug": "ts-node-dev --inspect-brk -- src/index.ts",
     "test": "jest"
   },
