@@ -1,17 +1,13 @@
-import express, { type ClientRequest } from './express';
 import { v4 as uuid, validate as validateUuid } from 'uuid';
+import { RequestWithUser } from './types';
 import { assertIsUserDraft } from './utils';
-import type { User } from './types';
+import express from './express';
 import db from './db';
 
 const app = express('api');
 
 app.use(express.exceptions());
 app.use(express.json());
-
-interface RequestWithUser extends ClientRequest {
-  user: User;
-}
 
 app.use((req: RequestWithUser, res, next) => {
   if (req.path === 'users/:id') {

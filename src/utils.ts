@@ -1,6 +1,6 @@
 import type { IncomingMessage } from 'node:http';
 import cluster from 'node:cluster';
-import type { UserDraft } from './types';
+import { UserDraft } from './types';
 
 export function assertIsUserDraft(value: unknown): asserts value is UserDraft {
   if (typeof value !== 'object' || value === null) {

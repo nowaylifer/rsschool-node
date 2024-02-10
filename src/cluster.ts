@@ -1,8 +1,9 @@
 import { availableParallelism } from 'node:os';
 import cluster from 'node:cluster';
 import http from 'node:http';
-import db, { UserMap } from './db';
+import { UserMap } from './types';
 import app from './app';
+import db from './db';
 
 export default function initCluster(port: number) {
   if (cluster.isPrimary) {

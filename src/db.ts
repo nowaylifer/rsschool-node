@@ -1,8 +1,6 @@
 import { EventEmitter } from 'stream';
 import { v4 as uuid } from 'uuid';
-import { User } from './types';
-
-export type UserMap = Map<string, User>;
+import { User, UserMap } from './types';
 
 export class UserDB {
   private map: UserMap;

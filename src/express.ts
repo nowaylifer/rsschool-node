@@ -1,32 +1,7 @@
-import http from 'node:http';
-import { HttpMethod, JSONValue } from './types';
-import { logRequest } from './utils';
 import domain from 'node:domain';
-
-export type ServerResponse = http.ServerResponse<http.IncomingMessage> & {
-  req: http.IncomingMessage;
-} & {
-  status: (code: number) => ServerResponse;
-  send: (data: JSONValue) => void;
-  error: (message: string) => void;
-};
-
-export type ClientRequest = http.IncomingMessage & {
-  params?: Record<string, string>;
-  path: string;
-  body: unknown;
-};
-
-export type RouteHandler<TRequest extends ClientRequest = ClientRequest> = (
-  req: TRequest,
-  res: ServerResponse,
-) => void;
-
-export type Middleware<TRequest extends ClientRequest = ClientRequest> = (
-  req: TRequest,
-  res: ServerResponse,
-  next: () => void,
-) => void;
+import http from 'node:http';
+import { HttpMethod, Middleware, RouteHandler, ClientRequest, ServerResponse } from './types';
+import { logRequest } from './utils';
 
 export class Express {
   private server: http.Server;
