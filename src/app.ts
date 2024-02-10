@@ -2,18 +2,14 @@ import express, { type ClientRequest } from './express';
 import { v4 as uuid, validate as validateUuid } from 'uuid';
 import { assertIsUserDraft } from './utils';
 import type { User } from './types';
-
-const USERS: User[] = [
-  { id: uuid(), username: 'nowaylifer', age: 99, hobbies: ['coding'] },
-  { id: uuid(), username: 'hefty1337', age: 20, hobbies: ['video games', 'netflix'] },
-];
+import db from './db';
 
 const app = express('api');
 
 app.use(express.json());
 
 interface RequestWithUser extends ClientRequest {
-  user: { index: number; value: User };
+  user: User;
 }
 
 app.use((req: RequestWithUser, res, next) => {
@@ -24,10 +20,10 @@ app.use((req: RequestWithUser, res, next) => {
       return res.status(400).error('Invalid user id');
     }
 
-    const userIndex = USERS.findIndex((user) => user.id === userId);
+    const user = db.get(userId);
 
-    if (userIndex >= 0) {
-      req.user = { index: userIndex, value: USERS[userIndex] };
+    if (user) {
+      req.user = user;
       next();
     } else {
       res.status(404).error('User not found');
@@ -40,14 +36,14 @@ app.use((req: RequestWithUser, res, next) => {
 });
 
 app.get('users', (_req, res) => {
-  res.status(200).send(USERS);
+  res.status(200).send(db.values());
 });
 
 app.post('users', (req, res) => {
   try {
     assertIsUserDraft(req.body);
-    const user = { id: uuid(), ...req.body };
-    USERS.push(user);
+    const user = { ...req.body, id: uuid() };
+    db.set(user.id, user);
     res.status(201).send(user);
   } catch (error) {
     res.status(400).error((error as Error).message);
@@ -55,14 +51,14 @@ app.post('users', (req, res) => {
 });
 
 app.get('users/:id', (req: RequestWithUser, res) => {
-  res.status(200).send(req.user.value);
+  res.status(200).send(req.user);
 });
 
 app.put('users/:id', (req: RequestWithUser, res) => {
   try {
     assertIsUserDraft(req.body);
-    const userUpdated = { ...req.body, id: req.user.value.id };
-    USERS[req.user.index] = userUpdated;
+    const userUpdated = { ...req.body, id: req.user.id };
+    db.set(req.user.id, userUpdated);
     res.status(200).send(userUpdated);
   } catch (error) {
     res.status(400).error((error as Error).message);
@@ -70,8 +66,7 @@ app.put('users/:id', (req: RequestWithUser, res) => {
 });
 
 app.delete('users/:id', (req: RequestWithUser, res) => {
-  const { index } = req.user;
-  USERS.splice(index, 1);
+  db.delete(req.user.id);
   res.status(204).end();
 });
 

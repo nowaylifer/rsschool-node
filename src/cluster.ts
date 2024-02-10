@@ -1,16 +1,28 @@
-import cluster, { type Worker } from 'node:cluster';
 import { availableParallelism } from 'node:os';
+import cluster from 'node:cluster';
 import http from 'node:http';
+import db, { UserMap } from './db';
 import app from './app';
 
 export default function initCluster(port: number) {
   if (cluster.isPrimary) {
-    const cpuCount = availableParallelism();
-    const workers: Worker[] = [];
+    cluster.setupPrimary({
+      serialization: 'advanced',
+    });
 
-    for (let i = 1; i <= cpuCount; i++) {
-      workers.push(cluster.fork());
-    }
+    const workers = Array.from({ length: availableParallelism() }, () => {
+      const worker = cluster.fork();
+
+      worker.on('message', (map: UserMap) => {
+        workers.forEach((w) => {
+          if (w.id !== worker.id) {
+            w.send?.(map);
+          }
+        });
+      });
+
+      return worker;
+    });
 
     const next = roundRobin(workers.length);
 
@@ -44,6 +56,16 @@ export default function initCluster(port: number) {
 
     app.listen(workerPort, () => {
       console.log(`Worker ${workerId} is listening on port ${workerPort}`);
+    });
+
+    db.on('change', (map: UserMap) => {
+      process.send?.(map);
+    });
+
+    process.on('message', (map: UserMap) => {
+      if (map instanceof Map) {
+        db.swap(map);
+      }
     });
   }
 }

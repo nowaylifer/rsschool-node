@@ -1,6 +1,6 @@
 import http from 'node:http';
 import { HttpMethod, JSONValue } from './types';
-import { match } from 'node:assert';
+import { logRequest } from './utils';
 
 export type ServerResponse = http.ServerResponse<http.IncomingMessage> & {
   req: http.IncomingMessage;
@@ -30,9 +30,9 @@ export type Middleware<TRequest extends ClientRequest = ClientRequest> = (
 export class Express {
   private server: http.Server;
   private routes: Record<string, RouteHandler>;
+  private paths: Record<string, string>;
   private middlewares: Middleware[];
   private baseRoute: string;
-  private paths: Record<string, string>;
 
   constructor(baseRoute: string = '') {
     this.server = http.createServer();
@@ -42,6 +42,8 @@ export class Express {
     this.baseRoute = baseRoute;
 
     this.server.on('request', (req: ClientRequest, res: ServerResponse) => {
+      logRequest(req);
+
       res.status = (code) => {
         res.statusCode = code;
         return res;
@@ -67,7 +69,7 @@ export class Express {
         reqRouteString = reqRouteString.slice(0, -1);
       }
 
-      const match = this.matchRoute(reqRouteString, Object.keys(this.routes));
+      const match = this.matchRoute(reqRouteString);
 
       if (!match) return res.status(404).error('Endpoint not found');
 
@@ -127,8 +129,8 @@ export class Express {
     run(req, res, this.middlewares);
   }
 
-  private matchRoute(urlPath: string, routes: string[]) {
-    for (const route of routes) {
+  private matchRoute(urlPath: string) {
+    for (const route of Object.keys(this.routes)) {
       const regexp = new RegExp(route);
       const match = urlPath.match(regexp);
       if (match) return { route, params: match.groups };

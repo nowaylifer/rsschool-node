@@ -1,3 +1,5 @@
+import type { IncomingMessage } from 'node:http';
+import cluster from 'node:cluster';
 import type { UserDraft } from './types';
 
 export function assertIsUserDraft(value: unknown): asserts value is UserDraft {
@@ -24,4 +26,12 @@ export function assertIsUserDraft(value: unknown): asserts value is UserDraft {
 
 function throwFieldError(field: string) {
   throw new Error(`Field "${field}" is missing or has a wrong type`);
+}
+
+export function logRequest(req: IncomingMessage) {
+  if (cluster.isWorker) {
+    console.log(`Worker ${cluster.worker!.id} is handling request ${req.method} ${req.url}`);
+  } else {
+    console.log(`${req.method} ${req.url}`);
+  }
 }
