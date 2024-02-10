@@ -1,6 +1,6 @@
+import { UserDraft, HttpMethod } from '../types';
 import app from '../app';
 import db from '../db';
-import { UserDraft, type HttpMethod } from '../types';
 
 const port = 8050;
 const baseUrl = `http://localhost:${port}/`;

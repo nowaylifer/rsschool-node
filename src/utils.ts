@@ -1,6 +1,6 @@
 import type { IncomingMessage } from 'node:http';
 import cluster from 'node:cluster';
-import { UserDraft } from './types';
+import { UserDraft, type User } from './types';
 
 export function assertIsUserDraft(value: unknown): asserts value is UserDraft {
   if (typeof value !== 'object' || value === null) {
@@ -34,4 +34,18 @@ export function logRequest(req: IncomingMessage) {
   } else {
     console.log(`${req.method} ${req.url}`);
   }
+}
+
+export function createUserDTO(id: string, userDraft: UserDraft): User {
+  return {
+    id,
+    username: userDraft.username,
+    age: userDraft.age,
+    hobbies: userDraft.hobbies,
+  };
+}
+
+export function createUserDraftDTO(object: unknown): UserDraft {
+  assertIsUserDraft(object);
+  return { username: object.username, age: object.age, hobbies: object.hobbies };
 }

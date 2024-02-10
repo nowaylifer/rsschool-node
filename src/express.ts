@@ -157,10 +157,11 @@ express.json = () => async (req, res, next) => {
 
   try {
     req.body = await parseJSON(req);
-    next();
   } catch (error) {
-    res.status(400).error((error as Error).message);
+    return res.status(400).error((error as Error).message);
   }
+
+  next();
 };
 
 express.exceptions = () => (_req, res, next) => {

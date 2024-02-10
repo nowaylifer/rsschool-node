@@ -1,6 +1,6 @@
 import { v4 as uuid, validate as validateUuid } from 'uuid';
-import { RequestWithUser } from './types';
-import { assertIsUserDraft } from './utils';
+import { RequestWithUser, UserDraft } from './types';
+import { createUserDTO, createUserDraftDTO } from './utils';
 import express from './express';
 import db from './db';
 
@@ -37,14 +37,17 @@ app.get('users', (_req, res) => {
 });
 
 app.post('users', (req, res) => {
+  let userDraft: UserDraft;
+
   try {
-    assertIsUserDraft(req.body);
-    const user = { ...req.body, id: uuid() };
-    db.set(user.id, user);
-    res.status(201).send(user);
+    userDraft = createUserDraftDTO(req.body);
   } catch (error) {
-    res.status(400).error((error as Error).message);
+    return res.status(400).error((error as Error).message);
   }
+
+  const user = createUserDTO(uuid(), userDraft);
+  db.set(user.id, user);
+  res.status(201).send(user);
 });
 
 app.get('users/:id', (req: RequestWithUser, res) => {
@@ -52,14 +55,17 @@ app.get('users/:id', (req: RequestWithUser, res) => {
 });
 
 app.put('users/:id', (req: RequestWithUser, res) => {
+  let userDraft: UserDraft;
+
   try {
-    assertIsUserDraft(req.body);
-    const userUpdated = { ...req.body, id: req.user.id };
-    db.set(req.user.id, userUpdated);
-    res.status(200).send(userUpdated);
+    userDraft = createUserDraftDTO(req.body);
   } catch (error) {
-    res.status(400).error((error as Error).message);
+    return res.status(400).error((error as Error).message);
   }
+
+  const userUpdated = createUserDTO(req.user.id, userDraft);
+  db.set(req.user.id, userUpdated);
+  res.status(200).send(userUpdated);
 });
 
 app.delete('users/:id', (req: RequestWithUser, res) => {

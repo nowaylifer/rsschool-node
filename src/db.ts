@@ -1,5 +1,4 @@
-import { EventEmitter } from 'stream';
-import { v4 as uuid } from 'uuid';
+import { EventEmitter } from 'node:events';
 import { User, UserMap } from './types';
 
 export class UserDB {
@@ -37,7 +36,7 @@ export class UserDB {
     return [...this.map.values()];
   }
 
-  swap(map: Map<string, User>) {
+  swap(map: UserMap) {
     this.map = map;
   }
 
@@ -47,8 +46,18 @@ export class UserDB {
 }
 
 const db = new UserDB([
-  { id: uuid(), username: 'nowaylifer', age: 99, hobbies: ['coding'] },
-  { id: uuid(), username: 'hefty1337', age: 20, hobbies: ['video games', 'netflix'] },
+  {
+    id: 'f6f81776-5134-4f6f-9cef-1ab5c2283d3d',
+    username: 'nowaylifer',
+    age: 99,
+    hobbies: ['coding'],
+  },
+  {
+    id: 'a35ecf55-74d7-47d5-870d-3e78bdcf1c42',
+    username: 'hefty1337',
+    age: 20,
+    hobbies: ['video games', 'netflix'],
+  },
 ]);
 
 export default db;
