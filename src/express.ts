@@ -1,6 +1,7 @@
 import http from 'node:http';
 import { HttpMethod, JSONValue } from './types';
 import { logRequest } from './utils';
+import domain from 'node:domain';
 
 export type ServerResponse = http.ServerResponse<http.IncomingMessage> & {
   req: http.IncomingMessage;
@@ -63,7 +64,7 @@ export class Express {
         res.send({ error: { status: res.statusCode, message } });
       };
 
-      let reqRouteString = `${req.method!.toLocaleUpperCase()} ${req.url}`;
+      let reqRouteString = `${req.method?.toLocaleUpperCase()} ${req.url}`;
 
       if (reqRouteString.at(-1) === '/') {
         reqRouteString = reqRouteString.slice(0, -1);
@@ -158,6 +159,7 @@ export class Express {
 type ExpressFn = {
   (baseRoute?: string): Express;
   json: () => Middleware;
+  exceptions: () => Middleware;
 };
 
 const express: ExpressFn = (baseRoute?: string) => new Express(baseRoute);
@@ -178,6 +180,23 @@ express.json = () => async (req, res, next) => {
   } catch (error) {
     res.status(400).error((error as Error).message);
   }
+};
+
+express.exceptions = () => (_req, res, next) => {
+  const d = domain.create();
+
+  res.once('finish', () => {
+    d.exit();
+    d.removeAllListeners();
+  });
+
+  d.once('error', () => {
+    if (!res.headersSent) {
+      res.status(500).error('Server error');
+    }
+  });
+
+  d.run(next);
 };
 
 export default express;

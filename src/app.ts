@@ -6,6 +6,7 @@ import db from './db';
 
 const app = express('api');
 
+app.use(express.exceptions());
 app.use(express.json());
 
 interface RequestWithUser extends ClientRequest {
@@ -68,6 +69,10 @@ app.put('users/:id', (req: RequestWithUser, res) => {
 app.delete('users/:id', (req: RequestWithUser, res) => {
   db.delete(req.user.id);
   res.status(204).end();
+});
+
+app.get('error', () => {
+  throw new Error();
 });
 
 export default app;
