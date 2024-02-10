@@ -80,8 +80,14 @@ export class Express {
     });
   }
 
-  listen(port: number, cb: () => void) {
+  listen(port: number, cb?: () => void) {
     this.server.listen(port, cb);
+    return this;
+  }
+
+  close(cb?: (err?: Error | undefined) => void) {
+    this.server.close(cb);
+    return this;
   }
 
   use<TRequest extends ClientRequest>(middleware: Middleware<TRequest>) {

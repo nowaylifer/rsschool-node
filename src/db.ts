@@ -30,6 +30,11 @@ export class UserDB {
     return existed;
   }
 
+  clear() {
+    this.map.clear();
+    this.events.emit('change', this.map);
+  }
+
   values() {
     return [...this.map.values()];
   }

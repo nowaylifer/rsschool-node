@@ -5,8 +5,8 @@
   "main": "build/index.js",
   "scripts": {
     "start:dev": "ts-node-dev src/index.ts",
-    "start:prod": "CLUSTER=true webpack && node build/index.js",
-    "start:multi": "CLUSTER=true npm run start:dev",
+    "start:prod": "webpack && cross-env CLUSTER=true node build/index.js",
+    "start:multi": "cross-env CLUSTER=true npm run start:dev",
     "start:debug": "ts-node-dev --inspect-brk -- src/index.ts",
     "test": "jest"
   },
@@ -17,6 +17,7 @@
     "@types/jest": "^29.5.12",
     "@types/node": "^20.11.16",
     "@types/uuid": "^9.0.8",
+    "cross-env": "^7.0.3",
     "dotenv": "^16.4.1",
     "jest": "^29.7.0",
     "prettier": "^3.2.5",
