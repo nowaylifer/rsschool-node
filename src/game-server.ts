@@ -1,28 +1,23 @@
 import { type Server, WebSocketServer, type WebSocket } from 'ws';
-import type { JSONValue } from './express/types';
-import type {
-  User,
-  Message,
-  ClientMessage,
-  MessageType,
-  RegisterRequest,
-  RegisterResponse,
-  Room,
-  UpdateRoomsMessage,
-  UpdateWinnersMessage,
-} from './types';
 import { promisify } from 'util';
 import { retry } from './utils';
+import type {
+  User,
+  Room,
+  AnyMessage,
+  ServerMessage,
+  ClientMessage,
+  ClientMessageType,
+} from './types';
 
 type WebSocketExtended = WebSocket & {
   json(value: unknown): Promise<void>;
   sendPromises(data: string): Promise<void>;
 };
 
-type MessageHandlerRecord = Record<
-  MessageType,
-  <T extends ClientMessage>(message: T, ws: WebSocketExtended) => void
->;
+type MessageHandlerMap = {
+  [T in ClientMessageType]: (message: ClientMessage<T>, ws: WebSocketExtended) => void;
+};
 
 export default class GameServer {
   static listen(port: number, onListening?: () => void) {
@@ -33,13 +28,13 @@ export default class GameServer {
   private users: User[];
   private rooms: Room[];
   private winners: Pick<User, 'name' | 'wins'>[];
-  private messageHandlers: MessageHandlerRecord;
+  private messageHandlers: MessageHandlerMap;
 
   constructor(port: number, onListening?: () => void) {
     this.users = [];
     this.rooms = [];
     this.winners = [];
-    this.messageHandlers = { reg: this.register };
+    this.messageHandlers = { reg: this.register, create_room: this.createRoom };
     this.server = new WebSocketServer({ port });
 
     if (onListening) {
@@ -52,25 +47,23 @@ export default class GameServer {
       ws.json = (value) => ws.sendPromises(JSON.stringify(value));
 
       ws.on('message', (message: string) => {
-        const body = JSON.parse(message) as Message;
+        const body = JSON.parse(message) as AnyMessage;
         const data = JSON.parse(body.data as string);
         const msg = { ...body, data } as ClientMessage;
-        this.messageHandlers[body.type as MessageType].call(this, msg, ws);
+        this.handleClientMessage(msg, ws);
       });
     });
   }
 
-  private async register(message: RegisterRequest, ws: WebSocketExtended) {
-    const newUser = { ...message.data, index: this.users.length, wins: 0 };
-    this.users.push(newUser);
-    const response: RegisterResponse = { type: 'reg', data: { ...newUser, error: false } };
-    await this.sendMessage(response, ws);
-    await this.sendRooms(ws);
-    await this.sendWinners(ws);
+  private handleClientMessage<T extends ClientMessageType>(
+    message: ClientMessage<T>,
+    ws: WebSocketExtended,
+  ) {
+    this.messageHandlers[message.type](message, ws);
   }
 
-  private async sendMessage<T extends Message>(message: T, ws: WebSocketExtended) {
-    const msg: Message = { ...message, data: JSON.stringify(message.data), id: 0 };
+  private async sendMessage<T extends AnyMessage>(message: T, ws: WebSocketExtended) {
+    const msg: AnyMessage = { ...message, data: JSON.stringify(message.data), id: 0 };
 
     try {
       await retry(ws.json, 2, 200)(msg);
@@ -79,8 +72,21 @@ export default class GameServer {
     }
   }
 
+  private async register(message: ClientMessage<'reg'>, ws: WebSocketExtended) {
+    const newUser = { ...message.data, index: this.users.length, wins: 0 };
+    this.users.push(newUser);
+    const response: ServerMessage<'reg'> = { type: 'reg', data: { ...newUser, error: false } };
+    await this.sendMessage(response, ws);
+    await this.sendRooms(ws);
+    await this.sendWinners(ws);
+  }
+
+  private createRoom() {
+    this.rooms.push({ roomId: this.rooms.length, roomUsers: [] });
+  }
+
   private sendRooms(ws: WebSocketExtended) {
-    const message: UpdateRoomsMessage = {
+    const message: ServerMessage<'update_room'> = {
       type: 'update_room',
       data: this.rooms,
     };
@@ -88,7 +94,7 @@ export default class GameServer {
   }
 
   private sendWinners(ws: WebSocketExtended) {
-    const message: UpdateWinnersMessage = {
+    const message: ServerMessage<'update_winners'> = {
       type: 'update_winners',
       data: this.winners,
     };
