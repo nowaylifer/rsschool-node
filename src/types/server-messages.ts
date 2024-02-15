@@ -1,4 +1,4 @@
-import type { Room, User } from '.';
+import type { RoomDTO, UserDTO, WinnerDTO } from '.';
 
 export type ServerMessageMap = {
   reg: RegisterResponse;
@@ -24,6 +24,6 @@ type NoError = {
   error: false;
 };
 
-export type RegisterResponse = Pick<User, 'name' | 'index'> & ErrorObject;
-export type UpdateRoomsMessage = Room[];
-export type UpdateWinnersMessage = Pick<User, 'name' | 'wins'>[];
+export type RegisterResponse = UserDTO & ErrorObject;
+export type UpdateWinnersMessage = WinnerDTO[];
+export type UpdateRoomsMessage = RoomDTO[];

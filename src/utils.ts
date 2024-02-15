@@ -15,5 +15,3 @@ export const retry = <This, Args extends any[], Return>(
     }
   };
 };
-
-export const randomId = () => Math.floor(Math.random() * 5);

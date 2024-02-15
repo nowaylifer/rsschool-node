@@ -6,14 +6,17 @@ export type AnyMessage = {
   data: unknown;
 };
 
-export type User = {
-  name: string;
-  password: string;
+export type UserDTO = {
   index: number;
-  wins: number;
+  name: string;
 };
 
-export type Room = {
+export type RoomDTO = {
   roomId: number;
-  roomUsers: Pick<User, 'name' | 'index'>[];
+  roomUsers: UserDTO[];
+};
+
+export type WinnerDTO = {
+  name: string;
+  wins: number;
 };

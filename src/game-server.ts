@@ -1,68 +1,102 @@
-import { type Server, WebSocketServer, type WebSocket } from 'ws';
+import { WebSocketServer, type Server, type WebSocket } from 'ws';
+import { EventEmitter } from 'node:events';
 import { promisify } from 'util';
 import { retry } from './utils';
 import type {
-  User,
-  Room,
   AnyMessage,
   ServerMessage,
   ClientMessage,
   ClientMessageType,
+  WinnerDTO,
 } from './types';
+import User from './user';
+import Room from './room';
 
-type WebSocketExtended = WebSocket & {
+export type WS = WebSocket & {
   json(value: unknown): Promise<void>;
   sendPromises(data: string): Promise<void>;
+  user: User;
 };
 
-type MessageHandlerMap = {
-  [T in ClientMessageType]: (message: ClientMessage<T>, ws: WebSocketExtended) => void;
+type ClientMessageHandlerMap = {
+  [T in ClientMessageType]: (message: ClientMessage<T>, ws: WS) => void;
 };
 
-export default class GameServer {
+export default class GameServer extends EventEmitter {
   static listen(port: number, onListening?: () => void) {
     return new this(port, onListening);
   }
 
   private server: Server;
-  private users: User[];
-  private rooms: Room[];
-  private winners: Pick<User, 'name' | 'wins'>[];
-  private messageHandlers: MessageHandlerMap;
+  private users: Map<User['id'], User>;
+  private rooms: Map<Room['id'], Room>;
+  private winners: WinnerDTO[];
+  private clientMessageHandlers: ClientMessageHandlerMap;
 
   constructor(port: number, onListening?: () => void) {
-    this.users = [];
-    this.rooms = [];
+    super();
+    this.users = new Map();
+    this.rooms = new Map();
     this.winners = [];
-    this.messageHandlers = { reg: this.register, create_room: this.createRoom };
+    this.clientMessageHandlers = {
+      reg: this.register,
+      create_room: this.createRoom,
+      add_user_to_room: this.addUserToRoom,
+    };
+
     this.server = new WebSocketServer({ port });
 
     if (onListening) {
       this.server.on('listening', onListening);
     }
 
-    this.server.on('connection', (ws: WebSocketExtended) => {
-      console.log('new client connected');
+    this.server.on('connection', (ws: WS) => {
+      console.log('Connected new client');
       ws.sendPromises = promisify(ws.send);
       ws.json = (value) => ws.sendPromises(JSON.stringify(value));
 
       ws.on('message', (message: string) => {
-        const body = JSON.parse(message) as AnyMessage;
-        const data = JSON.parse(body.data as string);
-        const msg = { ...body, data } as ClientMessage;
+        const msg = this.parseClientMessage(message);
         this.handleClientMessage(msg, ws);
       });
     });
+
+    this.on('REGISTER_USER', async (user: User) => {
+      console.log(`User ${user.name} has registered`);
+      await this.sendRooms(user.ws);
+      await this.sendWinners(user.ws);
+    });
+
+    this.on('CREATE_ROOM', async (room: Room, user: User) => {
+      console.log(`User ${user.name} has created room ${room.id}`);
+      await this.sendRooms();
+    });
+
+    this.on('JOIN_ROOM', async (room: Room, user: User) => {
+      console.log(`User ${user.name} has joined room ${room.id}`);
+      await Promise.all(room.users.map(({ ws }) => this.sendRooms(ws)));
+    });
   }
 
-  private handleClientMessage<T extends ClientMessageType>(
-    message: ClientMessage<T>,
-    ws: WebSocketExtended,
-  ) {
-    this.messageHandlers[message.type](message, ws);
+  private parseClientMessage(message: string) {
+    const body = JSON.parse(message) as AnyMessage;
+
+    let data;
+
+    try {
+      data = JSON.parse(body.data as string);
+    } catch {
+      data = '';
+    }
+
+    return { ...body, data } as ClientMessage;
   }
 
-  private async sendMessage<T extends AnyMessage>(message: T, ws: WebSocketExtended) {
+  private handleClientMessage<T extends ClientMessageType>(message: ClientMessage<T>, ws: WS) {
+    this.clientMessageHandlers[message.type].call(this, message, ws);
+  }
+
+  private async notify<T extends AnyMessage>(message: T, ws: WS) {
     const msg: AnyMessage = { ...message, data: JSON.stringify(message.data), id: 0 };
 
     try {
@@ -72,32 +106,48 @@ export default class GameServer {
     }
   }
 
-  private async register(message: ClientMessage<'reg'>, ws: WebSocketExtended) {
-    const newUser = { ...message.data, index: this.users.length, wins: 0 };
-    this.users.push(newUser);
-    const response: ServerMessage<'reg'> = { type: 'reg', data: { ...newUser, error: false } };
-    await this.sendMessage(response, ws);
-    await this.sendRooms(ws);
-    await this.sendWinners(ws);
+  private notifyAll(message: AnyMessage) {
+    const promises = [...this.server.clients].map((client) => this.notify(message, client as WS));
+    return Promise.allSettled(promises);
   }
 
-  private createRoom() {
-    this.rooms.push({ roomId: this.rooms.length, roomUsers: [] });
+  private async register(msg: ClientMessage<'reg'>, ws: WS) {
+    const newUser = new User({ ...msg.data, id: this.users.size, ws });
+    this.users.set(newUser.id, newUser);
+    ws.user = newUser;
+    const response: ServerMessage<'reg'> = {
+      type: 'reg',
+      data: { ...newUser.toDTO(), error: false },
+    };
+    await this.notify(response, ws);
+    this.emit('REGISTER_USER', newUser);
   }
 
-  private sendRooms(ws: WebSocketExtended) {
+  private async createRoom(_msg: ClientMessage<'create_room'>, ws: WS) {
+    const room = new Room({ id: this.rooms.size, users: [ws.user] });
+    this.rooms.set(room.id, room);
+    this.emit('CREATE_ROOM', room, ws.user);
+  }
+
+  private async addUserToRoom(msg: ClientMessage<'add_user_to_room'>, ws: WS) {
+    const room = this.rooms.get(msg.data.indexRoom)!;
+    room.addUser(ws.user);
+    this.emit('JOIN_ROOM', room, ws.user);
+  }
+
+  private sendRooms(ws?: WS) {
     const message: ServerMessage<'update_room'> = {
       type: 'update_room',
-      data: this.rooms,
+      data: [...this.rooms.values()].map((room) => room.toDTO()),
     };
-    return this.sendMessage(message, ws);
+    return ws ? this.notify(message, ws) : this.notifyAll(message);
   }
 
-  private sendWinners(ws: WebSocketExtended) {
+  private sendWinners(ws?: WS) {
     const message: ServerMessage<'update_winners'> = {
       type: 'update_winners',
       data: this.winners,
     };
-    return this.sendMessage(message, ws);
+    return ws ? this.notify(message, ws) : this.notifyAll(message);
   }
 }
