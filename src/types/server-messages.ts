@@ -4,6 +4,7 @@ export type ServerMessageMap = {
   reg: RegisterResponse;
   update_room: UpdateRoomsMessage;
   update_winners: UpdateWinnersMessage;
+  create_game: CreateGameMessage;
 };
 
 export type ServerMessageType = keyof ServerMessageMap;
@@ -27,3 +28,7 @@ type NoError = {
 export type RegisterResponse = UserDTO & ErrorObject;
 export type UpdateWinnersMessage = WinnerDTO[];
 export type UpdateRoomsMessage = RoomDTO[];
+export type CreateGameMessage = {
+  idGame: string;
+  idPlayer: string;
+};

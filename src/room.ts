@@ -1,28 +1,26 @@
 import Game from './game';
 import type { RoomDTO } from './types';
 import type User from './user';
+import { v4 as uuid } from 'uuid';
 
-type IRoom = {
-  size?: number;
-  users?: User[];
-  id: number;
-};
-
-export default class Room implements IRoom {
+export default class Room {
   readonly users: User[];
-  readonly size: number;
-  readonly id: number;
+  readonly size = 2;
+  readonly id: string;
   private _game: Game | null;
 
-  constructor({ id, size = 2, users = [] }: IRoom) {
-    this.id = id;
-    this.users = users;
-    this.size = size;
+  constructor(user: User) {
+    this.id = uuid();
+    this.users = [user];
     this._game = null;
   }
 
   get game() {
     return this._game;
+  }
+
+  get userCount() {
+    return this.users.length;
   }
 
   addUser(user: User) {
@@ -32,8 +30,10 @@ export default class Room implements IRoom {
     this.users.push(user);
   }
 
-  startGame() {
-    this._game = new Game(this.users[0], this.users[1]);
+  createGame() {
+    const game = new Game(this.users as [User, User]);
+    this._game = game;
+    return game;
   }
 
   toDTO(): RoomDTO {

@@ -7,12 +7,12 @@ export type AnyMessage = {
 };
 
 export type UserDTO = {
-  index: number;
+  index: string;
   name: string;
 };
 
 export type RoomDTO = {
-  roomId: number;
+  roomId: string;
   roomUsers: UserDTO[];
 };
 

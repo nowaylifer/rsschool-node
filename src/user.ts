@@ -1,23 +1,22 @@
+import { v4 as uuid } from 'uuid';
 import type { WS } from './game-server';
 import type { UserDTO } from './types';
 
-type IUser = {
-  id: number;
+type UserConfig = {
   name: string;
   password: string;
-  wins: number;
   ws: WS;
 };
 
-export default class User implements IUser {
-  readonly id: number;
+export default class User {
+  readonly id: string;
   readonly name: string;
   readonly password: string;
   readonly wins: number;
   readonly ws: WS;
 
-  constructor({ id, name, password, ws }: Omit<IUser, 'wins'>) {
-    this.id = id;
+  constructor({ name, password, ws }: UserConfig) {
+    this.id = uuid();
     this.name = name;
     this.password = password;
     this.ws = ws;

@@ -8,7 +8,6 @@ const wsPort = +process.env.WS_PORT!;
 
 const app = express();
 
-app.use(express.log());
 app.use(express.static(path.resolve(__dirname, '../frontend')));
 
 app.listen(httpPort, () => {

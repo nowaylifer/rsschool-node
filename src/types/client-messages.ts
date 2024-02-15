@@ -16,4 +16,19 @@ export type RegisterRequest = {
   password: string;
 };
 export type CreateRoomMessage = '';
-export type AddUserToRoom = { indexRoom: number };
+export type AddUserToRoom = { indexRoom: string };
+export type AddShipsMessage = {
+  gameId: string;
+  indexPlayer: string;
+  ships: [
+    {
+      type: 'small' | 'medium' | 'large' | 'huge';
+      direction: boolean;
+      length: number;
+      position: {
+        x: number;
+        y: number;
+      };
+    },
+  ];
+};

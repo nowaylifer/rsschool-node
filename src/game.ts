@@ -1,11 +1,17 @@
 import type User from './user';
+import { v4 as uuid } from 'uuid';
+
+type Player = {
+  id: string;
+  user: User;
+};
 
 export default class Game {
-  private p1: User;
-  private p2: User;
+  readonly id: string;
+  readonly players: [Player, Player];
 
-  constructor(p1: User, p2: User) {
-    this.p1 = p1;
-    this.p2 = p2;
+  constructor(users: [User, User]) {
+    this.id = uuid();
+    this.players = users.map((user, idx) => ({ id: user.id, user })) as [Player, Player];
   }
 }
