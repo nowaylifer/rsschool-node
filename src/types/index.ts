@@ -20,3 +20,21 @@ export type WinnerDTO = {
   name: string;
   wins: number;
 };
+
+export type Position = {
+  x: number;
+  y: number;
+};
+
+export type AttackStatus = 'miss' | 'kill' | 'shot';
+
+export type ShipDTO = {
+  type: 'small' | 'medium' | 'large' | 'huge';
+  direction: boolean;
+  length: number;
+  position: Position;
+};
+
+export type Ship = ShipDTO & {
+  deadParts: number;
+};

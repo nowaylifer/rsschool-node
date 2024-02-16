@@ -15,3 +15,8 @@ export const retry = <This, Args extends any[], Return>(
     }
   };
 };
+
+export const randomArrayElement = <T>(array: T[]) =>
+  array[Math.floor(Math.random() * array.length)];
+
+export const uuid = () => crypto.randomUUID();

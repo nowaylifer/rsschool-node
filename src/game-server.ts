@@ -1,4 +1,4 @@
-import ws, { WebSocketServer, type Server, type WebSocket } from 'ws';
+import { WebSocketServer, type Server, type WebSocket } from 'ws';
 import { EventEmitter } from 'node:events';
 import { promisify } from 'util';
 import { retry } from './utils';
@@ -12,7 +12,6 @@ import type {
 import User from './user';
 import Room from './room';
 import type Game from './game';
-import user from './user';
 
 export type WS = WebSocket & {
   json(value: unknown): Promise<void>;
@@ -46,6 +45,9 @@ export default class GameServer extends EventEmitter {
       reg: this.registerUser,
       create_room: this.createRoom,
       add_user_to_room: this.addUserToRoom,
+      add_ships: this.addShips,
+      attack: this.handleAttack,
+      randomAttack: this.handleAttack,
     };
 
     this.server = new WebSocketServer({ port });
@@ -65,26 +67,38 @@ export default class GameServer extends EventEmitter {
       });
     });
 
-    this.on('REGISTER_USER', async (user: User, ws: WS) => {
-      console.log(`User ${user.name} has registered`);
+    this.on('USER_REGISTERED', (user: User, ws: WS) => {
+      console.log(`User ${user.id} has registered`);
       ws.user = user;
       this.sendRooms(ws);
       this.sendWinners(ws);
     });
 
-    this.on('CREATE_ROOM', async (room: Room, user: User) => {
-      console.log(`User ${user.name} has created room ${room.id}`);
+    this.on('ROOM_CREATED', (room: Room, user: User) => {
+      console.log(`User ${user.id} has created room ${room.id}`);
       this.sendRooms();
     });
 
-    this.on('JOIN_ROOM', async (room: Room, user: User) => {
-      console.log(`User ${user.name} has joined room ${room.id}`);
+    this.on('ROOM_JOINED', (room: Room, user: User) => {
+      console.log(`User ${user.id} has joined room ${room.id}`);
       this.sendRooms();
       this.createGame(room);
     });
 
-    this.on('CREATE_GAME', async (game: Game) => {
+    this.on('GAME_CREATED', (game: Game) => {
       console.log(`Game ${game.id} has been created`);
+    });
+
+    this.on('SHIPS_ADDED', (game: Game, playerId: string) => {
+      console.log(`Player ${playerId} has added ships`);
+      if (game.isAllReady()) {
+        this.startGame(game);
+      }
+    });
+
+    this.on('GAME_STARTED', (game: Game) => {
+      console.log(`Game ${game.id} has been started`);
+      this.updateTurn(game);
     });
   }
 
@@ -135,19 +149,19 @@ export default class GameServer extends EventEmitter {
     };
     await this.notify(response, ws);
     this.users.set(newUser.id, newUser);
-    this.emit('REGISTER_USER', newUser, ws);
+    this.emit('USER_REGISTERED', newUser, ws);
   }
 
   private createRoom(_msg: ClientMessage<'create_room'>, ws: WS) {
     const room = new Room(ws.user);
     this.rooms.set(room.id, room);
-    this.emit('CREATE_ROOM', room, ws.user);
+    this.emit('ROOM_CREATED', room, ws.user);
   }
 
   private addUserToRoom(msg: ClientMessage<'add_user_to_room'>, ws: WS) {
     const room = this.rooms.get(msg.data.indexRoom)!;
     room.addUser(ws.user);
-    this.emit('JOIN_ROOM', room, ws.user);
+    this.emit('ROOM_JOINED', room, ws.user);
   }
 
   private async createGame(room: Room) {
@@ -166,7 +180,49 @@ export default class GameServer extends EventEmitter {
       }),
     );
     this.games.set(game.id, game);
-    this.emit('CREATE_GAME', game);
+    this.emit('GAME_CREATED', game);
+  }
+
+  private addShips(msg: ClientMessage<'add_ships'>, ws: WS) {
+    const game = this.games.get(msg.data.gameId)!;
+    game.addShips(msg.data.indexPlayer, msg.data.ships);
+    this.emit('SHIPS_ADDED', game, msg.data.indexPlayer);
+  }
+
+  private async startGame(game: Game) {
+    game.start();
+    await Promise.all(
+      game.players.map((player) => {
+        const message: ServerMessage<'start_game'> = {
+          type: 'start_game',
+          data: {
+            ships: player.ships,
+            currentPlayerIndex: player.id,
+          },
+        };
+        this.notify(message, player.user.ws);
+      }),
+    );
+    this.emit('GAME_STARTED', game);
+  }
+
+  private async updateTurn(game: Game) {
+    const currentPlayer = game.currentTurnPlayer().id;
+
+    await Promise.all(
+      game.players.map((player) => {
+        const message: ServerMessage<'turn'> = {
+          type: 'turn',
+          data: { currentPlayer },
+        };
+        this.notify(message, player.user.ws);
+      }),
+    );
+  }
+
+  private handleAttack(msg: ClientMessage<'attack'> | ClientMessage<'randomAttack'>, ws: WS) {
+    const game = this.games.get(msg.data.gameId)!;
+    const feedback = game.playTurn(msg.data.indexPlayer);
   }
 
   private sendRooms(ws?: WS) {

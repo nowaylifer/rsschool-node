@@ -1,7 +1,12 @@
+import type { ShipDTO } from '.';
+
 export type ClientMessageMap = {
   reg: RegisterRequest;
   create_room: CreateRoomMessage;
-  add_user_to_room: AddUserToRoom;
+  add_user_to_room: AddUserToRoomMessage;
+  add_ships: AddShipsMessage;
+  attack: AttackRequest;
+  randomAttack: RandomAttackRequest;
 };
 
 export type ClientMessageType = keyof ClientMessageMap;
@@ -15,20 +20,25 @@ export type RegisterRequest = {
   name: string;
   password: string;
 };
+
 export type CreateRoomMessage = '';
-export type AddUserToRoom = { indexRoom: string };
+
+export type AddUserToRoomMessage = { indexRoom: string };
+
 export type AddShipsMessage = {
   gameId: string;
   indexPlayer: string;
-  ships: [
-    {
-      type: 'small' | 'medium' | 'large' | 'huge';
-      direction: boolean;
-      length: number;
-      position: {
-        x: number;
-        y: number;
-      };
-    },
-  ];
+  ships: ShipDTO[];
+};
+
+export type AttackRequest = {
+  gameId: string;
+  indexPlayer: string;
+  x: number;
+  y: number;
+};
+
+export type RandomAttackRequest = {
+  gameId: string;
+  indexPlayer: string;
 };

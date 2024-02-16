@@ -15,7 +15,6 @@
   "devDependencies": {
     "@types/jest": "^29.5.12",
     "@types/node": "^20.11.16",
-    "@types/uuid": "^9.0.8",
     "@types/ws": "^8.5.10",
     "cross-env": "^7.0.3",
     "dotenv": "^16.4.1",
@@ -29,7 +28,6 @@
     "webpack-cli": "^5.1.4"
   },
   "dependencies": {
-    "uuid": "^9.0.1",
     "ws": "^8.16.0"
   }
 }

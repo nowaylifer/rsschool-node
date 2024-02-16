@@ -1,10 +1,13 @@
-import type { RoomDTO, UserDTO, WinnerDTO } from '.';
+import type { AttackStatus, Position, RoomDTO, ShipDTO, UserDTO, WinnerDTO } from '.';
 
 export type ServerMessageMap = {
   reg: RegisterResponse;
   update_room: UpdateRoomsMessage;
   update_winners: UpdateWinnersMessage;
   create_game: CreateGameMessage;
+  start_game: StartGameMessage;
+  turn: TurnMessage;
+  attack: AttackResponse;
 };
 
 export type ServerMessageType = keyof ServerMessageMap;
@@ -28,7 +31,23 @@ type NoError = {
 export type RegisterResponse = UserDTO & ErrorObject;
 export type UpdateWinnersMessage = WinnerDTO[];
 export type UpdateRoomsMessage = RoomDTO[];
+
 export type CreateGameMessage = {
   idGame: string;
   idPlayer: string;
+};
+
+export type StartGameMessage = {
+  ships: ShipDTO[];
+  currentPlayerIndex: string;
+};
+
+export type TurnMessage = {
+  currentPlayer: string;
+};
+
+export type AttackResponse = {
+  currentPlayer: string;
+  status: AttackStatus;
+  position: Position;
 };
