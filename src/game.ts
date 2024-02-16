@@ -1,32 +1,55 @@
-import { clearLine } from 'readline';
-import type { AttackStatus, Position, Ship, ShipDTO } from './types';
+import type { AttackStatus, Position } from './types';
 import type User from './user';
 import { uuid } from './utils';
 import { randomArrayElement } from './utils';
+import type Ship from './ship';
 
-type Player = {
+export type Player = {
   id: string;
   ready: boolean;
   board: Board;
-  ships: ShipDTO[];
+  ships: Ship[];
+  liveShips: number;
   user: User;
 };
 
-type Cell = { attacked: boolean; position: Position; ship?: Ship };
-type Board = Cell[][];
+type WithShip = {
+  status: Exclude<AttackStatus, 'miss'>;
+  ship: Ship;
+};
+
+type NoShip = {
+  status: Extract<AttackStatus, 'miss'>;
+};
+
+type AttackResult = WithShip | NoShip;
+
+export type TurnResult = AttackResult & {
+  player: Player;
+  position: Position;
+};
+
+export type Cell = { attacked: boolean; position: Position; ship?: Ship };
+export type Board = Cell[][];
 
 const BOARD_SIDE_LENGTH = 10;
+const PLAYER_SHIP_COUNT = 10;
 
 export default class Game {
   readonly id: string;
   readonly players: [Player, Player];
   private _currentTurnPlayer!: Player;
   private _isStarted: boolean;
+  private _isFinished: boolean;
+  private _winner: Player | null;
+  private _lastTurnResult?: TurnResult;
 
   constructor(users: [User, User]) {
     this.id = uuid();
     this.players = users.map((user) => ({ id: user.id, ready: false, user })) as [Player, Player];
     this._isStarted = false;
+    this._winner = null;
+    this._isFinished = false;
   }
 
   start() {
@@ -42,74 +65,122 @@ export default class Game {
     return this.players.every((player) => player.ready);
   }
 
-  currentTurnPlayer() {
+  get lastTurnResult() {
+    return this._lastTurnResult;
+  }
+
+  get currentTurnPlayer() {
     return this._currentTurnPlayer;
   }
 
-  playTurn(playerTurnId: Player['id'], position?: Position) {
-    const targetedPlayer = this.players.find((player) => player.id !== playerTurnId)!;
-    const attackPos = position ?? this.generateRandomAttackPosition(targetedPlayer.board);
-    const status = this.attack(attackPos, targetedPlayer.board);
-
-    if (status === 'miss') {
-      this._currentTurnPlayer = targetedPlayer;
-    }
+  private isPlayerLost(player: Player) {
+    return !player.liveShips;
   }
 
-  private attack(pos: Position, board: Board): AttackStatus {
-    const cell = board[pos.y][pos.x];
+  get winner() {
+    return this._winner;
+  }
+
+  isFinished() {
+    return this._isFinished;
+  }
+
+  playTurn(playerTurnId: Player['id'], position?: Position) {
+    const player = this.players.find((player) => player.id === playerTurnId)!;
+    const targetedPlayer = this.players.find((player) => player.id !== playerTurnId)!;
+
+    if (player !== this.currentTurnPlayer) {
+      throw new Error(`Not the player ${playerTurnId} turn`);
+    }
+
+    if (position && targetedPlayer.board[position.y][position.x].attacked) {
+      throw new Error('Cell is already attacked');
+    }
+
+    const attackPosition = position ?? this.generateRandomAttackPosition(targetedPlayer.board);
+
+    const { status, ship } = this.attack(attackPosition, targetedPlayer);
+    const finish = this.isPlayerLost(targetedPlayer);
+
+    if (finish) {
+      this._isFinished = true;
+      this._winner = player;
+    }
+
+    if (status === 'miss' && !finish) {
+      this._currentTurnPlayer = targetedPlayer;
+    }
+
+    const turnResult = {
+      player,
+      status,
+      ship,
+      position: attackPosition,
+    } as TurnResult;
+
+    this._lastTurnResult = turnResult;
+
+    return turnResult;
+  }
+
+  private attack(pos: Position, targetPlayer: Player) {
+    const cell = targetPlayer.board[pos.y][pos.x];
     cell.attacked = true;
 
     if (cell.ship) {
-      return ++cell.ship.deadParts === cell.ship.length ? 'kill' : 'shot';
+      const shipDefeated = cell.ship.hit();
+
+      if (shipDefeated) {
+        --targetPlayer.liveShips;
+      }
+
+      return { ship: cell.ship, status: shipDefeated ? 'killed' : 'shot' };
     }
 
-    return 'miss';
+    return { status: 'miss' };
   }
 
   private generateRandomAttackPosition(board: Board): Position {
-    return { x: 1, y: 1 };
+    const notAttackedCells = board.flat().filter((cell) => !cell.attacked);
+    const randomCell = randomArrayElement(notAttackedCells);
+    return randomCell.position;
   }
 
   private createEmptyBoard(): Board {
     return Array(BOARD_SIDE_LENGTH)
       .fill(null)
       .map((_, yPos) =>
-        Array(BOARD_SIDE_LENGTH).map((_, xPos) => ({
-          position: { y: yPos, x: xPos },
-          attacked: false,
-        })),
+        Array(BOARD_SIDE_LENGTH)
+          .fill(null)
+          .map((_, xPos) => ({
+            position: { y: yPos, x: xPos },
+            attacked: false,
+          })),
       );
   }
 
-  addShips(playerId: Player['id'], shipsDTO: ShipDTO[]) {
+  addShips(playerId: Player['id'], ships: Ship[]) {
     const player = this.players.find((player) => player.id === playerId)!;
-    const board = this.createEmptyBoard();
 
-    player.board = shipsDTO.reduce((board, shipDTO) => {
-      const ship = this.createShip(shipDTO);
-      let yPos = ship.position.y;
-      let xPos = ship.position.x;
+    player.board = ships.reduce((board, ship) => {
+      let yPos = { cur: ship.position.y };
+      let xPos = { cur: ship.position.x };
+      let deltaPos = ship.vertical ? yPos : xPos;
 
       for (let i = 0; i < ship.length; i++) {
-        if (ship.direction) {
-          yPos += i;
-        } else {
-          xPos += i;
-        }
-
-        board[yPos][xPos].ship = ship;
+        const cell = board[yPos.cur][xPos.cur];
+        cell.ship = ship;
+        ship.setOwnCell(cell);
+        ++deltaPos.cur;
       }
 
       return board;
-    }, board);
+    }, this.createEmptyBoard());
+
+    ships.forEach((ship) => ship.setNeighbourCells(player.board));
 
     player.ready = true;
-    player.ships = shipsDTO;
-  }
-
-  private createShip(shipDTO: ShipDTO) {
-    const ship: Ship = Object.assign(shipDTO, { deadParts: 0 });
-    return ship;
+    player.ships = ships;
+    player.liveShips = PLAYER_SHIP_COUNT;
   }
 }

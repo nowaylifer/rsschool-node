@@ -26,15 +26,11 @@ export type Position = {
   y: number;
 };
 
-export type AttackStatus = 'miss' | 'kill' | 'shot';
+export type AttackStatus = 'miss' | 'killed' | 'shot';
 
 export type ShipDTO = {
   type: 'small' | 'medium' | 'large' | 'huge';
   direction: boolean;
   length: number;
   position: Position;
-};
-
-export type Ship = ShipDTO & {
-  deadParts: number;
 };

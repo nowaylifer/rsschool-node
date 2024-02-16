@@ -8,11 +8,12 @@ export type ServerMessageMap = {
   start_game: StartGameMessage;
   turn: TurnMessage;
   attack: AttackResponse;
+  finish: FinishMessage;
 };
 
 export type ServerMessageType = keyof ServerMessageMap;
 
-export type ServerMessage<T extends ServerMessageType> = {
+export type ServerMessage<T extends ServerMessageType = ServerMessageType> = {
   type: T;
   data: ServerMessageMap[T];
 };
@@ -28,7 +29,7 @@ type NoError = {
   error: false;
 };
 
-export type RegisterResponse = UserDTO & ErrorObject;
+export type RegisterResponse = (UserDTO & NoError) | HasError;
 export type UpdateWinnersMessage = WinnerDTO[];
 export type UpdateRoomsMessage = RoomDTO[];
 
@@ -50,4 +51,8 @@ export type AttackResponse = {
   currentPlayer: string;
   status: AttackStatus;
   position: Position;
+};
+
+export type FinishMessage = {
+  winPlayer: string;
 };
