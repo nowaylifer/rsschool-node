@@ -29,7 +29,7 @@ export type Position = {
 export type AttackStatus = 'miss' | 'killed' | 'shot';
 
 export type ShipDTO = {
-  type: 'small' | 'medium' | 'large' | 'huge';
+  type: string;
   direction: boolean;
   length: number;
   position: Position;

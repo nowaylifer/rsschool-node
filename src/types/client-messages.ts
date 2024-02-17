@@ -7,6 +7,7 @@ export type ClientMessageMap = {
   add_ships: AddShipsMessage;
   attack: AttackRequest;
   randomAttack: RandomAttackRequest;
+  single_play: StartSinglePlay;
 };
 
 export type ClientMessageType = keyof ClientMessageMap;
@@ -42,3 +43,5 @@ export type RandomAttackRequest = {
   gameId: string;
   indexPlayer: string;
 };
+
+export type StartSinglePlay = '';

@@ -1,4 +1,5 @@
 import type { AttackStatus, Position } from './types';
+import { EventEmitter } from 'node:events';
 import type User from './user';
 import { uuid } from './utils';
 import { randomArrayElement } from './utils';
@@ -35,7 +36,7 @@ export type Board = Cell[][];
 const BOARD_SIDE_LENGTH = 10;
 const PLAYER_SHIP_COUNT = 10;
 
-export default class Game {
+export default class Game extends EventEmitter {
   readonly id: string;
   readonly players: [Player, Player];
   private _currentTurnPlayer!: Player;
@@ -45,6 +46,7 @@ export default class Game {
   private _lastTurnResult?: TurnResult;
 
   constructor(users: [User, User]) {
+    super();
     this.id = uuid();
     this.players = users.map((user) => ({ id: user.id, ready: false, user })) as [Player, Player];
     this._isStarted = false;
@@ -54,7 +56,7 @@ export default class Game {
 
   start() {
     this._isStarted = true;
-    this._currentTurnPlayer = randomArrayElement(this.players);
+    this._currentTurnPlayer = this.players[0];
   }
 
   isStarted() {
@@ -119,6 +121,8 @@ export default class Game {
     } as TurnResult;
 
     this._lastTurnResult = turnResult;
+
+    this.emit('TURN_FINISHED', turnResult);
 
     return turnResult;
   }

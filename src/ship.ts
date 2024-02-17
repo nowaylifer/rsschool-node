@@ -2,7 +2,7 @@ import type { Board, Cell } from './game';
 import type { Position, ShipDTO } from './types';
 
 export default class Ship {
-  readonly type: 'small' | 'medium' | 'large' | 'huge';
+  readonly type: string;
   readonly vertical: boolean;
   readonly length: number;
   readonly position: Position;

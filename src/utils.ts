@@ -1,4 +1,6 @@
+import { WebSocket } from 'ws';
 import type { Player } from './game';
+import type { WS } from './game-server';
 import type { AttackStatus, Position, RegisterResponse, ServerMessage } from './types';
 
 export const retry = <This, Args extends any[], Return>(
@@ -45,3 +47,10 @@ export const createRegisterResponse = (msg: RegisterResponse): ServerMessage<'re
   type: 'reg',
   data: msg,
 });
+
+export const createMockWS = (): WS => {
+  const socket = new WebSocket('ws://localhost:3000') as WS;
+  socket.json = () => Promise.resolve();
+  socket.sendPromises = () => Promise.resolve();
+  return socket;
+};

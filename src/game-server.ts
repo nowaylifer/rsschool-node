@@ -1,19 +1,28 @@
-import { WebSocketServer, type Server, type WebSocket } from 'ws';
+import { WebSocketServer, type Server, WebSocket } from 'ws';
 import { EventEmitter } from 'node:events';
 import { promisify } from 'util';
-import { createAttackResponse, createRegisterResponse, isPosition, retry } from './utils';
+import {
+  createAttackResponse,
+  createMockWS,
+  createRegisterResponse,
+  isPosition,
+  randomArrayElement,
+  retry,
+} from './utils';
 import type {
   AnyMessage,
   ServerMessage,
   ClientMessage,
   ClientMessageType,
   WinnerDTO,
+  ShipDTO,
 } from './types';
 import User from './user';
 import Room from './room';
-import type Game from './game';
+import Game from './game';
 import Ship from './ship';
 import type { Player, TurnResult } from './game';
+import botShips from './bot-ships.json';
 
 export type WS = WebSocket & {
   json(value: unknown): Promise<void>;
@@ -51,6 +60,7 @@ export default class GameServer extends EventEmitter {
       add_ships: this.addShips,
       attack: this.handleGameTurn,
       randomAttack: this.handleGameTurn,
+      single_play: this.startSinglePlayerGame,
     };
 
     this.server = new WebSocketServer({ port });
@@ -186,6 +196,34 @@ export default class GameServer extends EventEmitter {
     return Promise.allSettled(promises);
   }
 
+  private async startSinglePlayerGame(_msg: ClientMessage<'single_play'>, ws: WS) {
+    const bot = new User('bot', 'bot');
+    bot.connectWS(createMockWS());
+
+    const room = new Room(ws.user);
+    room.addUser(bot);
+
+    const game = await this.createGame(room);
+
+    const ships = randomArrayElement(botShips);
+
+    this.addShips({
+      type: 'add_ships',
+      data: { gameId: game.id, indexPlayer: bot.id, ships },
+    });
+
+    game.on('TURN_FINISHED', () => {
+      if (game.currentTurnPlayer.id === bot.id) {
+        setTimeout(() => {
+          this.handleGameTurn({
+            type: 'randomAttack',
+            data: { gameId: game.id, indexPlayer: bot.id },
+          });
+        }, 1000);
+      }
+    });
+  }
+
   private async registerUser(msg: ClientMessage<'reg'>, ws: WS) {
     const users = [...this.users.values()];
     const existingUser = users.find((user) => user.name === msg.data.name);
@@ -237,6 +275,7 @@ export default class GameServer extends EventEmitter {
     }));
     this.games.set(game.id, game);
     this.emit('GAME_CREATED', game);
+    return game;
   }
 
   private addShips(msg: ClientMessage<'add_ships'>) {
