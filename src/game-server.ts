@@ -1,6 +1,9 @@
 import { WebSocketServer, type Server, WebSocket } from 'ws';
 import { EventEmitter } from 'node:events';
 import { promisify } from 'util';
+import type { AnyMessage, ServerMessage, ClientMessage, ClientMessageType } from './types';
+import type { Player, TurnResult } from './game';
+import botShips from './bot-ships.json';
 import {
   createAttackResponse,
   createMockWS,
@@ -9,20 +12,10 @@ import {
   randomArrayElement,
   retry,
 } from './utils';
-import type {
-  AnyMessage,
-  ServerMessage,
-  ClientMessage,
-  ClientMessageType,
-  WinnerDTO,
-  ShipDTO,
-} from './types';
 import User from './user';
 import Room from './room';
 import Game from './game';
 import Ship from './ship';
-import type { Player, TurnResult } from './game';
-import botShips from './bot-ships.json';
 
 export type WS = WebSocket & {
   json(value: unknown): Promise<void>;
@@ -144,6 +137,10 @@ export default class GameServer extends EventEmitter {
       this.winners.add(user);
       this.updateWinners();
     });
+  }
+
+  async close() {
+    this.server.clients.forEach((ws) => ws.close());
   }
 
   private parseClientMessage(message: string) {

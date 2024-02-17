@@ -1,8 +1,8 @@
-import type { AttackStatus, Position } from './types';
 import { EventEmitter } from 'node:events';
+import type { AttackStatus, Position } from './types';
+import { randomArrayElement } from './utils';
 import type User from './user';
 import { uuid } from './utils';
-import { randomArrayElement } from './utils';
 import type Ship from './ship';
 
 export type Player = {

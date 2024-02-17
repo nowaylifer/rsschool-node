@@ -1,6 +1,6 @@
-import { uuid } from './utils';
 import type { WS } from './game-server';
 import type { UserDTO } from './types';
+import { uuid } from './utils';
 
 export default class User {
   readonly id: string;

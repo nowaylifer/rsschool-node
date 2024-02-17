@@ -1,7 +1,7 @@
-import Game from './game';
 import type { RoomDTO } from './types';
 import type User from './user';
 import { uuid } from './utils';
+import Game from './game';
 
 export default class Room {
   readonly users: User[];

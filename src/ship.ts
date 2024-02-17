@@ -1,5 +1,5 @@
-import type { Board, Cell } from './game';
 import type { Position, ShipDTO } from './types';
+import type { Board, Cell } from './game';
 
 export default class Ship {
   readonly type: string;

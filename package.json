@@ -4,9 +4,9 @@
   "description": "",
   "main": "build/index.js",
   "scripts": {
-    "start:dev": "ts-node-dev src/index.ts",
-    "start:prod": "webpack && cross-env CLUSTER=true node build/index.js",
-    "start:debug": "ts-node-dev --inspect-brk -- src/index.ts",
+    "start": "ts-node-dev src/index.ts",
+    "build": "webpack && cross-env CLUSTER=true node build/index.js",
+    "debug": "ts-node-dev --inspect-brk -- src/index.ts",
     "test": "jest"
   },
   "keywords": [],

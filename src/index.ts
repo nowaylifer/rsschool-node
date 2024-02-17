@@ -1,6 +1,6 @@
 import 'dotenv/config';
-import express from './express';
 import path from 'path';
+import express from './express';
 import GameServer from './game-server';
 
 const httpPort = +process.env.HTTP_PORT!;
@@ -14,6 +14,10 @@ app.listen(httpPort, () => {
   console.log(`HTTP Server is listening on port ${httpPort}`);
 });
 
-GameServer.listen(wsPort, () => {
+const gameServer = new GameServer(wsPort, () => {
   console.log(`WebSocket server is listening on port ${wsPort}`);
+});
+
+process.on('SIGINT', async () => {
+  await gameServer.close();
 });
